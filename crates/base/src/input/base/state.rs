@@ -2810,12 +2810,8 @@ impl<M: InputModeKind> InputBaseState<M> {
         let old_text = text.slice(range.clone()).to_string();
         let new_range = range.start..range.start + new_text.len();
 
-        // The macOS Korean IME composes without marked text: each keystroke
-        // rewrites the character before the cursor through
-        // `insertText:replacementRange:` ("ㅎ" -> "하" -> "한"). Treat that as
-        // typing so that undo does not step back through every jamo. Replacing
-        // a selection does not qualify: its cursor is not collapsed. Neither do
-        // silent edits such as an accepted completion replacing its prefix.
+        // The macOS Korean IME composes by rewriting the character before the
+        // cursor ("ㅎ" -> "하" -> "한") instead of marking text.
         let rewrites_typed_char = !self.silent_replace_text
             && !range.is_empty()
             && selection_before.is_collapsed()
@@ -2823,6 +2819,7 @@ impl<M: InputModeKind> InputBaseState<M> {
             && old_text.chars().count() == 1
             && !old_text.contains(['\n', '\r'])
             && !new_text.contains(['\n', '\r']);
+
         let intent = requested_intent.unwrap_or_else(|| {
             let inserts = range.is_empty()
                 && old_text.is_empty()
@@ -7223,8 +7220,7 @@ mod tests {
         });
     }
 
-    /// The macOS Korean 2-Set IME composes without marked text: each keystroke
-    /// rewrites the character it just inserted through `insertText:replacementRange:`.
+    /// The macOS Korean IME rewrites the character it just inserted.
     #[gpui::test]
     fn test_undo_manager_ime_rewrites_of_typed_char_are_one_group(cx: &mut TestAppContext) {
         let input_view = InputView::build(cx, |state| state);
@@ -7256,8 +7252,6 @@ mod tests {
         });
     }
 
-    /// A rewrite only joins the run that typed the character. Press-and-hold
-    /// accents reach an earlier character the same way after the cursor moved.
     #[gpui::test]
     fn test_undo_manager_rewrite_after_cursor_movement_is_separate(cx: &mut TestAppContext) {
         let input_view = InputView::build(cx, |state| state);

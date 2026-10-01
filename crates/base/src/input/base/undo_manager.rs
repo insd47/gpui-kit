@@ -209,8 +209,6 @@ impl UndoManager {
                 && let [change] = changes.as_slice()
                 && let Some(last) = previous.changes.last_mut()
             {
-                // A rewrite replaces the tail of the run; for an append the
-                // truncation is a no-op.
                 last.new_text
                     .truncate(change.old_range.start - last.new_range.start);
                 last.new_text.push_str(&change.new_text);
@@ -446,7 +444,6 @@ fn is_adjacent(intent: EditIntent, previous: &Change, current: &Change) -> bool 
         EditIntent::Typing => {
             let appends =
                 current.old_range.is_empty() && previous.new_range.end == current.old_range.start;
-            // An IME rewriting the character it just inserted ("ㅎ" -> "하").
             let rewrites_tail = !current.old_range.is_empty()
                 && current.old_range.start >= previous.new_range.start
                 && current.old_range.end == previous.new_range.end;
