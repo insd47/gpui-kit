@@ -2814,8 +2814,10 @@ impl<M: InputModeKind> InputBaseState<M> {
         // rewrites the character before the cursor through
         // `insertText:replacementRange:` ("ㅎ" -> "하" -> "한"). Treat that as
         // typing so that undo does not step back through every jamo. Replacing
-        // a selection does not qualify: its cursor is not collapsed.
-        let rewrites_typed_char = !range.is_empty()
+        // a selection does not qualify: its cursor is not collapsed. Neither do
+        // silent edits such as an accepted completion replacing its prefix.
+        let rewrites_typed_char = !self.silent_replace_text
+            && !range.is_empty()
             && selection_before.is_collapsed()
             && selection_before.cursor_offset() == range.end
             && old_text.chars().count() == 1
