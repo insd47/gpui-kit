@@ -442,15 +442,11 @@ fn is_adjacent(intent: EditIntent, previous: &Change, current: &Change) -> bool 
     }
     match intent {
         EditIntent::Typing => {
-            let appends =
-                current.old_range.is_empty() && previous.new_range.end == current.old_range.start;
-            let rewrites_tail = !current.old_range.is_empty()
-                && current.old_range.start >= previous.new_range.start
-                && current.old_range.end == previous.new_range.end;
             previous.old_range.is_empty()
-                && (appends || rewrites_tail)
                 && !previous.new_text.contains(['\n', '\r'])
                 && !current.new_text.contains(['\n', '\r'])
+                && previous.new_range.start <= current.old_range.start
+                && previous.new_range.end == current.old_range.end
         }
         EditIntent::Backspace => {
             previous.new_text.is_empty()

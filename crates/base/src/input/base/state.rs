@@ -2790,6 +2790,23 @@ impl<M: InputModeKind> InputBaseState<M> {
         selection
     }
 
+    /// Whether an edit rewrites the character before a collapsed cursor, as the
+    /// macOS Korean IME does on each keystroke instead of marking text.
+    fn rewrites_typed_char(
+        &self,
+        selection: CursorSelection,
+        range: &Range<usize>,
+        old_text: &str,
+        new_text: &str,
+    ) -> bool {
+        !self.silent_replace_text
+            && selection.is_collapsed()
+            && selection.cursor_offset() == range.end
+            && old_text.chars().count() == 1
+            && !old_text.contains(['\n', '\r'])
+            && !new_text.contains(['\n', '\r'])
+    }
+
     fn push_history(
         &mut self,
         text: &Rope,
@@ -2810,22 +2827,13 @@ impl<M: InputModeKind> InputBaseState<M> {
         let old_text = text.slice(range.clone()).to_string();
         let new_range = range.start..range.start + new_text.len();
 
-        // The macOS Korean IME composes by rewriting the character before the
-        // cursor ("ㅎ" -> "하" -> "한") instead of marking text.
-        let rewrites_typed_char = !self.silent_replace_text
-            && !range.is_empty()
-            && selection_before.is_collapsed()
-            && selection_before.cursor_offset() == range.end
-            && old_text.chars().count() == 1
-            && !old_text.contains(['\n', '\r'])
-            && !new_text.contains(['\n', '\r']);
-
         let intent = requested_intent.unwrap_or_else(|| {
-            let inserts = range.is_empty()
+            if range.is_empty()
                 && old_text.is_empty()
                 && !new_text.is_empty()
-                && !new_text.contains(['\n', '\r']);
-            if inserts || rewrites_typed_char {
+                && !new_text.contains(['\n', '\r'])
+                || self.rewrites_typed_char(selection_before, &range, &old_text, new_text)
+            {
                 EditIntent::Typing
             } else {
                 EditIntent::Atomic
